@@ -114,8 +114,6 @@ export class WordleTrie {
         .reduce((score, next) => score + weightMap[next], 0)
       );
 
-    console.log(words);
-    console.log(scores);
 
     const [, maxIndx] = scores.reduce(([maxScore, maxIndx], next, indx) => next > maxScore ? [next, indx] : [maxScore, maxIndx], [0,0])
 
