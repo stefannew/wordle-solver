@@ -2,17 +2,14 @@ import * as puppeteer from 'puppeteer';
 import { Page } from 'puppeteer';
 
 import * as words from './wordle-all-words.json';
+import * as commonality from '../text_data/commonality.json';
 import { GuessState, Letter, Position, WordleTrie } from './WordleTrie';
+import { WordAnalyzer } from './WordAnalyzer';
 
 const MOST_COMMONLY_USED_WORDS = [
-  // 'aries',
-  // 'orias',
-  // 'serio',
   'soare',
   'serai',
-  'oreas',
   'raise',
-  'ireos',
   'arise',
   'arose',
   'aesir',
@@ -35,8 +32,8 @@ type ValidLetter = {
   position: number;
   state: TileState;
 }
-
-const trie = new WordleTrie(words);
+const analyzer = new WordAnalyzer(words, commonality)
+const trie = new WordleTrie(words, analyzer);
 
 const clearRow = async (page: Page) => {
   await page.keyboard.press('Backspace');

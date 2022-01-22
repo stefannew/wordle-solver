@@ -1,32 +1,7 @@
 import * as fs from 'fs';
+import { WordAnalyzer } from './WordAnalyzer';
 
-export type Letter =
-  'a'
-  | 'b'
-  | 'c'
-  | 'd'
-  | 'e'
-  | 'f'
-  | 'g'
-  | 'h'
-  | 'i'
-  | 'j'
-  | 'k'
-  | 'l'
-  | 'm'
-  | 'n'
-  | 'o'
-  | 'p'
-  | 'q'
-  | 'r'
-  | 's'
-  | 't'
-  | 'u'
-  | 'v'
-  | 'w'
-  | 'x'
-  | 'y'
-  | 'z';
+export type Letter = 'a'|'b'|'c'|'d'|'e'|'f'|'g'|'h'|'i'|'j'|'k'|'l'|'m'|'n'|'o'|'p'|'q'|'r'|'s'|'t'|'u'|'v'|'w'|'x'|'y'|'z';
 type Word = [Letter, Letter, Letter, Letter, Letter];
 export type Position = 0 | 1 | 2 | 3 | 4;
 type LetterMap = Record<Letter, string[]>;
@@ -42,35 +17,6 @@ export type GuessState = {
     position: Position
   }[],
   absent: Letter[]
-}
-
-const weightMap: Record<Letter, number> = {
-  e: 56.88,
-  m: 15.36,
-  a: 43.31,
-  h: 15.31,
-  r: 38.64,
-  g: 12.59,
-  i: 38.45,
-  b: 10.56,
-  o: 36.51,
-  f: 9.24,
-  t: 35.43,
-  y: 9.06,
-  n: 33.92,
-  w: 6.57,
-  s: 29.23,
-  k: 5.61,
-  l: 27.98,
-  v: 5.13,
-  c: 23.13,
-  x: 1.48,
-  u: 18.51,
-  z: 1.39,
-  d: 17.25,
-  j: 1.01,
-  p: 16.14,
-  q: 1.00
 }
 
 export class WordleTrie {
@@ -102,22 +48,10 @@ export class WordleTrie {
 
   containsMap: LetterMap = WordleTrie.initialLetterMap();
 
-  constructor(rawWords: string[], private debug = false) {
+  constructor(rawWords: string[], public analyzer: WordAnalyzer, private debug = false) {
     rawWords.forEach((word) => {
       this.loadWord(this.parseRawWord(word));
     });
-  }
-
-  getHighestScoringWord(words: string[]): string {
-    const scores = words
-      .map(w => w.split('')
-        .reduce((score, next) => score + weightMap[next], 0)
-      );
-
-
-    const [, maxIndx] = scores.reduce(([maxScore, maxIndx], next, indx) => next > maxScore ? [next, indx] : [maxScore, maxIndx], [0,0])
-
-    return words[maxIndx]
   }
 
   parseRawWord(word: string): Word {
@@ -185,11 +119,6 @@ export class WordleTrie {
       fs.writeFileSync('./availableWords.json', JSON.stringify(availableWords), 'utf-8');
     }
 
-    return this.getHighestScoringWord(availableWords);
+    return this.analyzer.getTopRankedWord(availableWords);
   }
 }
-
-// import * as words from './wordle-all-words.json';
-// const trie = new WordleTrie(words, true);
-// const a: GuessState = {}
-// console.log(trie.search(a));
