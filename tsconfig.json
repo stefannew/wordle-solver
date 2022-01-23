@@ -3,6 +3,7 @@
     "allowSyntheticDefaultImports": true,
     "resolveJsonModule": true,
     "lib": [
+      "dom",
       "es2020"
     ]
   }
