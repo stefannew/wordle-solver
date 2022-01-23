@@ -1,5 +1,5 @@
 import * as puppeteer from 'puppeteer';
-import { Page } from 'puppeteer';
+import { Browser, Page } from 'puppeteer';
 
 import * as words from './wordle-all-words.json';
 import * as commonality from '../text_data/commonality.json';
@@ -32,6 +32,12 @@ type ValidLetter = {
   position: number;
   state: TileState;
 }
+
+type WordleResult = {
+  result: string,
+  guessedWords: string[]
+};
+
 const analyzer = new WordAnalyzer(words, commonality)
 const trie = new WordleTrie(words, analyzer);
 
@@ -60,26 +66,27 @@ const getSuccessToast = async (page: Page) => {
 };
 
 const getShareButton = async (page: Page) => {
-  return await page.evaluateHandle(`document.querySelector("body > game-app").shadowRoot.querySelector("#game > game-modal > game-stats").shadowRoot.querySelector("#share-button")`);
+  return await page.waitForFunction(() =>
+    document.querySelector("body > game-app")?.shadowRoot.querySelector("#game > game-modal > game-stats")?.shadowRoot.querySelector("#share-button")
+  );
 };
 
-const makeGuess = async (page: Page, word: string, hasGuessedMostCommon = false, guessState: GuessState, maxTries: number = 0, tryIndex: number = 0, guess: number = 0, guessedWords = []) => {
+const makeGuess = async (page: Page, word: string, hasGuessedMostCommon = false, guessState: GuessState, maxTries: number = 0, tryIndex: number = 0, guess: number = 0, guessedWords = []): Promise<WordleResult> => {
   await page.type('body', word);
   await page.keyboard.press('Enter');
   const fail = await getFailToast(page);
   const success = await getSuccessToast(page);
 
-  if (fail) {
-    console.error('Failure.');
-    process.exit(0);
-  }
-
-  if (success) {
-    await page.waitForTimeout(3000);
-
+  if (success || fail) {
     const shareButton = await getShareButton(page);
+    await page.waitForTimeout(1000);
     await shareButton.asElement().click();
-    process.exit(0);
+    await page.waitForTimeout(1000);
+    const result = await page.evaluate(`window.__CLIPBOARD_TEXT__`);
+    return {
+      result,
+      guessedWords
+    };
   }
 
   await page.waitForTimeout(2000);
@@ -121,16 +128,28 @@ const makeGuess = async (page: Page, word: string, hasGuessedMostCommon = false,
   return makeGuess(page, nextWord, true, newGuessState, maxTries + 1, 0, guess + 1, [...guessedWords, word]);
 };
 
-(async() => {
-  const browser = await puppeteer.launch({
-    headless: false,
-    // slowMo: 500,
-    devtools: true
-  });
+type LaunchOptions = {
+  headless?: boolean,
+  devtools?: boolean,
+  slowMo?: number,
+  args?: string[]
+}
+export async function solve(launchOptions: LaunchOptions, startingWord?: string): Promise<WordleResult> {
+  const browser = await puppeteer.launch(launchOptions);
+  const pages = await browser.pages();
 
-  const page = await browser.newPage();
+  const page = pages.length < 0 ? await browser.newPage() : pages[0];
 
   // await page.emulateTimezone('Asia/Singapore');
+
+  // hijack the clipboard api
+  browser.on('targetchanged', async (target) => {
+    const targetPage = await target.page();
+    const client = await targetPage.target().createCDPSession();
+    await client.send('Runtime.evaluate', {
+      expression: `navigator.clipboard.writeText = navigator.clipboard.write = async (contents) => { window.__CLIPBOARD_TEXT__ = contents; }`,
+    });
+  });
 
   await page.goto('https://www.powerlanguage.co.uk/wordle');
 
@@ -139,6 +158,21 @@ const makeGuess = async (page: Page, word: string, hasGuessedMostCommon = false,
   const instructionsCloseButton = await page.evaluateHandle(`document.querySelector("body > game-app").shadowRoot.querySelector("#game > game-modal").shadowRoot.querySelector("div > div > div")`);
   await instructionsCloseButton.asElement().click();
 
-  await makeGuess(page, MOST_COMMONLY_USED_WORDS[Math.floor(Math.random() * (MOST_COMMONLY_USED_WORDS.length - 1))], false, WordleTrie.initialGuessState(), 0, 0, 0);
+  const result = await makeGuess(page, startingWord ?? MOST_COMMONLY_USED_WORDS[Math.floor(Math.random() * (MOST_COMMONLY_USED_WORDS.length - 1))], false, WordleTrie.initialGuessState(), 0, 0, 0)
+
+  // await page.waitForTimeout(100000);
+
   await browser.close();
-})();
+
+  return result;
+}
+
+if (require.main === module) {
+  solve({
+    headless: false,
+    devtools: true
+  })
+    .then((res) => {
+      console.log(res);
+    });
+}
