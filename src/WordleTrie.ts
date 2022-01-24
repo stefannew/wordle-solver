@@ -48,8 +48,8 @@ export class WordleTrie {
 
   containsMap: LetterMap = WordleTrie.initialLetterMap();
 
-  constructor(rawWords: string[], public analyzer: WordAnalyzer, private debug = false) {
-    rawWords.forEach((word) => {
+  constructor(public words: string[], public analyzer: WordAnalyzer, private debug = false) {
+    this.words.forEach((word) => {
       this.loadWord(this.parseRawWord(word));
     });
   }
@@ -86,7 +86,7 @@ export class WordleTrie {
       .reduce((prev, next) => {
         if (!prev.length) return next;
         return prev.filter((word) => next.includes(word));
-      }, []);
+      }, this.words);
 
     if (this.debug) {
       fs.writeFileSync('./correctFilter.json', JSON.stringify(correctFilter), 'utf-8');

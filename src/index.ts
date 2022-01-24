@@ -158,13 +158,11 @@ export async function solve(launchOptions: LaunchOptions, startingWord?: string)
   const instructionsCloseButton = await page.evaluateHandle(`document.querySelector("body > game-app").shadowRoot.querySelector("#game > game-modal").shadowRoot.querySelector("div > div > div")`);
   await instructionsCloseButton.asElement().click();
 
-  const result = await makeGuess(page, startingWord ?? MOST_COMMONLY_USED_WORDS[Math.floor(Math.random() * (MOST_COMMONLY_USED_WORDS.length - 1))], false, WordleTrie.initialGuessState(), 0, 0, 0)
-
-  // await page.waitForTimeout(100000);
-
-  await browser.close();
-
-  return result;
+  try {
+    return await makeGuess(page, startingWord ?? MOST_COMMONLY_USED_WORDS[Math.floor(Math.random() * (MOST_COMMONLY_USED_WORDS.length - 1))], false, WordleTrie.initialGuessState(), 0, 0, 0)
+  } finally {
+    await browser.close();
+  }
 }
 
 if (require.main === module) {
